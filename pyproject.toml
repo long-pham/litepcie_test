@@ -19,6 +19,7 @@ dependencies = [
     "pythondata-software-compiler-rt>=0.0.post6206",
     "litedram>=2025.4",
     "litescope>=2025.4",
+    "ruff>=0.12.1",
 ]
 
 [project.optional-dependencies]
@@ -49,6 +50,8 @@ build-backend = "hatchling.build"
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.ruff.lint]
 select = [
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings

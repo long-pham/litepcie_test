@@ -117,6 +117,7 @@ dependencies = [
     { name = "pythondata-software-compiler-rt" },
     { name = "pythondata-software-picolibc" },
     { name = "pyyaml" },
+    { name = "ruff" },
 ]
 
 [package.optional-dependencies]
@@ -139,6 +140,7 @@ requires-dist = [
     { name = "pythondata-software-compiler-rt", git = "https://github.com/litex-hub/pythondata-software-compiler_rt.git" },
     { name = "pythondata-software-picolibc", git = "https://github.com/litex-hub/pythondata-software-picolibc.git" },
     { name = "pyyaml", specifier = ">=6.0.2" },
+    { name = "ruff", specifier = ">=0.12.1" },
     { name = "ruff", marker = "extra == 'development'", specifier = ">=0.4.9" },
 ]
 

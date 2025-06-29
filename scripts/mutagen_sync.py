@@ -6,15 +6,15 @@ This script manages bidirectional file synchronization between local and remote
 development environments using Mutagen.
 """
 
-import subprocess
 import json
-import time
+import shlex
+import subprocess
 import sys
-from pathlib import Path
-from typing import List, Dict, Optional, Tuple, Any
+import time
 from dataclasses import dataclass, field
 from enum import Enum
-import shlex
+from pathlib import Path
+from typing import Any
 
 import click
 import yaml
@@ -41,7 +41,7 @@ class SyncConfig:
     ssh_timeout: int = 10
     retry_count: int = 3
     retry_delay: int = 2
-    ignore_patterns: List[str] = field(default_factory=list)
+    ignore_patterns: list[str] = field(default_factory=list)
     profile_name: str = "default"
 
     def __post_init__(self):
@@ -70,7 +70,7 @@ class ConfigManager:
     ]
 
     @classmethod
-    def find_config_file(cls) -> Optional[Path]:
+    def find_config_file(cls) -> Path | None:
         """Search for configuration file in standard locations"""
         for path in cls.CONFIG_SEARCH_PATHS:
             if path.exists():
@@ -79,7 +79,7 @@ class ConfigManager:
         return None
 
     @classmethod
-    def load_config(cls, config_path: Optional[Path] = None, profile: str = "default") -> SyncConfig:
+    def load_config(cls, config_path: Path | None = None, profile: str = "default") -> SyncConfig:
         """Load configuration from file or use defaults"""
         script_dir = Path(__file__).resolve().parent
 
@@ -162,7 +162,7 @@ class SSHConnection:
     """Manages SSH connectivity and validation"""
 
     @staticmethod
-    def test_connection(host: str, timeout: int = 10) -> Tuple[bool, str]:
+    def test_connection(host: str, timeout: int = 10) -> tuple[bool, str]:
         """Test SSH connection to host"""
         try:
             cmd = ['ssh', '-o', f'ConnectTimeout={timeout}', '-o', 'BatchMode=yes',
@@ -180,7 +180,7 @@ class SSHConnection:
             return False, f"SSH connection error: {str(e)}"
 
     @staticmethod
-    def validate_remote_path(host: str, path: str, timeout: int = 10, create_if_missing: bool = True) -> Tuple[bool, str]:
+    def validate_remote_path(host: str, path: str, timeout: int = 10, create_if_missing: bool = True) -> tuple[bool, str]:
         """Validate that remote path exists, optionally creating it if missing"""
         try:
             # First check if path exists
@@ -189,14 +189,14 @@ class SSHConnection:
 
             if result.returncode == 0:
                 return True, "Remote path exists"
-            
+
             # Path doesn't exist
             if create_if_missing:
                 # Try to create the directory
                 logger.info(f"Remote path '{path}' does not exist, attempting to create it...")
                 mkdir_cmd = ['ssh', '-o', f'ConnectTimeout={timeout}', host, 'mkdir', '-p', path]
                 mkdir_result = subprocess.run(mkdir_cmd, capture_output=True, text=True, timeout=timeout + 5)
-                
+
                 if mkdir_result.returncode == 0:
                     logger.info(f"Successfully created remote path: {path}")
                     return True, f"Remote path created: {path}"
@@ -219,7 +219,7 @@ class GitignoreParser:
         self.base_path = base_path
         self._patterns_cache = None
 
-    def read_patterns(self) -> List[str]:
+    def read_patterns(self) -> list[str]:
         """Read and parse .gitignore patterns"""
         if self._patterns_cache is not None:
             return self._patterns_cache
@@ -243,8 +243,8 @@ class GitignoreParser:
         self._patterns_cache = patterns
         return patterns
 
-    def convert_to_mutagen_patterns(self, patterns: List[str],
-                                    direction: SyncDirection) -> List[str]:
+    def convert_to_mutagen_patterns(self, patterns: list[str],
+                                    direction: SyncDirection) -> list[str]:
         """Convert gitignore patterns to mutagen ignore arguments"""
         ignore_args = []
 
@@ -327,7 +327,7 @@ class MutagenSync:
         except (subprocess.CalledProcessError, FileNotFoundError):
             raise click.ClickException(
                 "Mutagen is not installed. Please install it from: https://mutagen.io/documentation/introduction/installation"
-            )
+            ) from None
 
     def start_daemon(self) -> None:
         """Start mutagen daemon if not running"""
@@ -336,13 +336,13 @@ class MutagenSync:
             logger.debug("Mutagen daemon started")
         except subprocess.CalledProcessError as e:
             if b"already running" not in e.stderr:
-                raise click.ClickException(f"Failed to start mutagen daemon: {e.stderr.decode()}")
+                raise click.ClickException(f"Failed to start mutagen daemon: {e.stderr.decode()}") from e
 
     def get_session_name(self, direction: str) -> str:
         """Generate session name"""
         return f"{self._session_prefix}-{self.config.profile_name}-{direction}"
 
-    def get_existing_sessions(self) -> Dict[str, Any]:
+    def get_existing_sessions(self) -> dict[str, Any]:
         """Get information about existing sync sessions"""
         try:
             # First check if daemon is running
@@ -371,7 +371,7 @@ class MutagenSync:
             # Extract session names
             sessions = {}
             if isinstance(data, dict):
-                for key, value in data.items():
+                for _key, value in data.items():
                     if isinstance(value, dict) and 'name' in value:
                         sessions[value['name']] = value
 
@@ -417,9 +417,9 @@ class MutagenSync:
             subprocess.run(cmd, check=True)
             click.secho(f"✓ Created {direction.value} sync session", fg='green')
         except subprocess.CalledProcessError as e:
-            raise click.ClickException(f"Failed to create sync session: {e}")
+            raise click.ClickException(f"Failed to create sync session: {e}") from e
 
-    def start_sync(self, direction: Optional[SyncDirection] = None,
+    def start_sync(self, direction: SyncDirection | None = None,
                    force: bool = False, dry_run: bool = False, create_remote_dir: bool = True) -> None:
         """Start sync sessions"""
         direction = direction or self.config.direction
@@ -455,7 +455,7 @@ class MutagenSync:
         if not dry_run:
             self.show_status()
 
-    def stop_sync(self, direction: Optional[SyncDirection] = None) -> None:
+    def stop_sync(self, direction: SyncDirection | None = None) -> None:
         """Stop sync sessions"""
         direction = direction or self.config.direction
 
@@ -485,7 +485,7 @@ class MutagenSync:
         except Exception as e:
             logger.warning(f"Failed to terminate session {session_name}: {e}")
 
-    def pause_sync(self, direction: Optional[SyncDirection] = None) -> None:
+    def pause_sync(self, direction: SyncDirection | None = None) -> None:
         """Pause sync sessions"""
         direction = direction or self.config.direction
 
@@ -509,7 +509,7 @@ class MutagenSync:
             except subprocess.CalledProcessError:
                 click.secho(f"✗ Failed to pause {session_name}", fg='red')
 
-    def resume_sync(self, direction: Optional[SyncDirection] = None) -> None:
+    def resume_sync(self, direction: SyncDirection | None = None) -> None:
         """Resume sync sessions"""
         direction = direction or self.config.direction
 
