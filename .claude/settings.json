@@ -1,0 +1,36 @@
+{
+  "tools": {
+    "webSearch": {
+      "enabled": true,
+      "description": "Enable web search for latest LiteX/FPGA documentation"
+    },
+    "webFetch": {
+      "enabled": true,
+      "description": "Fetch documentation from LiteX wiki and forums"
+    }
+  },
+  "behavior": {
+    "confirmBeforeRunning": ["rm", "git push", "litepcie_util"],
+    "alwaysAllowedCommands": ["ls", "pwd", "git status", "pytest", "black", "ruff"],
+    "defaultShell": "bash"
+  },
+  "context": {
+    "remoteHost": "rem@192.168.1.67",
+    "projectType": "fpga-development",
+    "primaryLanguage": "python",
+    "testingFramework": "pytest"
+  },
+  "codeGeneration": {
+    "preferredFormatter": "black",
+    "linter": "ruff",
+    "typeChecker": "mypy",
+    "docstringStyle": "google",
+    "importStyle": "absolute"
+  },
+  "fpgaSpecific": {
+    "targetPlatform": "litex",
+    "interface": "pcie",
+    "remoteOS": "ubuntu",
+    "syncTool": "mutagen"
+  }
+}

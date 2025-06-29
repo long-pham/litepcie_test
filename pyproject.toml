@@ -1,0 +1,96 @@
+[project]
+name = "litepcie-test"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Long Pham", email = "lpham@lucidfw.com" }
+]
+requires-python = "==3.10.11"
+dependencies = [
+    "click>=8.2.1",
+    "loguru>=0.7.3",
+    "pyyaml>=6.0.2",
+    "litepcie>=2025.4",
+    "litex>=2025.4",
+    "litex-boards>=2025.4",
+    "pythondata-cpu-vexriscv>=1.0.1.post407",
+    "pythondata-software-picolibc>=1.7.9.post181",
+    "pythondata-software-compiler-rt>=0.0.post6206",
+    "litedram>=2025.4",
+    "litescope>=2025.4",
+]
+
+[project.optional-dependencies]
+development = [
+    "ruff>=0.4.9",
+    "pytest>=8.2.2",
+]
+
+[tool.uv.sources]
+liteeth = { git = "https://github.com/enjoy-digital/liteeth.git" }
+litepcie = { git = "https://github.com/enjoy-digital/litepcie.git" }
+litedram = { git = "https://github.com/enjoy-digital/litedram.git" }
+litex = { git = "https://github.com/enjoy-digital/litex.git" }
+litex-boards = { git = "https://github.com/litex-hub/litex-boards" }
+pythondata-cpu-vexriscv = { git = "https://github.com/litex-hub/pythondata-cpu-vexriscv.git" }
+pythondata-software-picolibc = { git = "https://github.com/litex-hub/pythondata-software-picolibc.git" }
+pythondata-software-compiler-rt = { git = "https://github.com/litex-hub/pythondata-software-compiler_rt.git" }
+litescope = { git = "https://github.com/enjoy-digital/litescope.git" }
+amaranth-yosys = { git = "https://github.com/amaranth-lang/amaranth-yosys.git" }
+
+[project.scripts]
+litepcie-test = "litepcie_test:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+]
+
+[tool.coverage.run]
+source = ["src/litepcie_test"]
+omit = ["*/tests/*", "*/__init__.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+files = ["src/litepcie_test"]
