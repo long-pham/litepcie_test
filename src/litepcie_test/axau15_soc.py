@@ -52,7 +52,7 @@ class _CRG(LiteXModule):
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
-class BaseSoC(SoCCore):
+class BaseSoC(SoCMini):
     def __init__(self, sys_clk_freq=int(125e6),
                  with_ethernet=False,
                  with_etherbone=False,
@@ -60,8 +60,8 @@ class BaseSoC(SoCCore):
                  remote_ip=None,
                  with_led_chaser=True,
                  with_pcie=False,
-                 # pcie_speed="gen4",
-                 pcie_speed="gen3",
+                 pcie_speed="gen4",
+                #  pcie_speed="gen3",
                  with_sdcard=False,
                  **kwargs):
         platform = alinx_axau15.Platform()
@@ -70,7 +70,7 @@ class BaseSoC(SoCCore):
         self.crg = _CRG(platform, sys_clk_freq)
 
         # SoCCore ----------------------------------------------------------------------------------
-        SoCCore.__init__(self, platform, sys_clk_freq, ident="LiteX SoC on Alinx AXAU15", **kwargs)
+        SoCMini.__init__(self, platform, sys_clk_freq, ident="LiteX SoC on Alinx AXAU15", **kwargs)
 
         # DDR4 SDRAM -------------------------------------------------------------------------------
         if not self.integrated_main_ram_size:
