@@ -254,6 +254,7 @@ dependencies = [
     { name = "litedram" },
     { name = "liteeth" },
     { name = "litepcie" },
+    { name = "litesata" },
     { name = "litescope" },
     { name = "litesdcard" },
     { name = "litex" },
@@ -280,6 +281,7 @@ requires-dist = [
     { name = "litedram", git = "https://github.com/enjoy-digital/litedram.git" },
     { name = "liteeth", git = "https://github.com/enjoy-digital/liteeth.git" },
     { name = "litepcie", git = "https://github.com/enjoy-digital/litepcie.git" },
+    { name = "litesata", git = "https://github.com/enjoy-digital/litesata.git" },
     { name = "litescope", git = "https://github.com/enjoy-digital/litescope.git" },
     { name = "litesdcard", git = "https://github.com/enjoy-digital/litesdcard.git" },
     { name = "litex", git = "https://github.com/enjoy-digital/litex.git" },
@@ -294,6 +296,15 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'development'", specifier = ">=0.4.9" },
     { name = "sphinx", specifier = ">=8.1.3" },
     { name = "sphinxcontrib-wavedrom", specifier = ">=3.0.4" },
+]
+
+[[package]]
+name = "litesata"
+version = "2025.4"
+source = { git = "https://github.com/enjoy-digital/litesata.git#9cf5b980ce93c217f73c87f845b9ac0ae4920376" }
+dependencies = [
+    { name = "litex" },
+    { name = "pyyaml" },
 ]
 
 [[package]]

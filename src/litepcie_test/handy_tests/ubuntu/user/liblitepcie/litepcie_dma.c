@@ -16,6 +16,11 @@
 #include "litepcie_dma.h"
 #include "litepcie_helpers.h"
 
+/* Define O_CLOEXEC if not available */
+#ifndef O_CLOEXEC
+#define O_CLOEXEC 0
+#endif
+
 
 void litepcie_dma_set_loopback(int fd, uint8_t loopback_enable) {
     struct litepcie_ioctl_dma m;
@@ -164,7 +169,7 @@ void litepcie_dma_process(struct litepcie_dma_ctrl *dma)
 
     /* polling */
     ret = poll(&dma->fds, 1, 100);
-    if (poll < 0) {
+    if (ret < 0) {
         perror("poll");
         return;
     } else if (ret == 0) {

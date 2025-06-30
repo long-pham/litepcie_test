@@ -4,7 +4,7 @@ from loguru import logger
 from litex.gen import LiteXModule, Signal, ClockDomain
 
 from litex_boards.platforms import alinx_axau15
-# from litex_boards.targets.alinx_axau15 import BaseSoC
+
 
 from litex.soc.cores.clock import USMMCM, USIDELAYCTRL
 from litex.soc.integration.soc_core import SoCCore, SoCMini

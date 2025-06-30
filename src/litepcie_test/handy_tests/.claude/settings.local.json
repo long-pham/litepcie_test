@@ -1,7 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(mkdir:*)",
+      "Bash(chmod:*)",
+      "Bash(./scripts/simple_build.sh:*)",
+      "Bash(clang:*)",
+      "Bash(./scripts/build_user_app.sh:*)",
+      "Bash(ls:*)",
+      "Bash(make:*)",
+      "Bash(bash:*)"
     ],
     "deny": []
   }
