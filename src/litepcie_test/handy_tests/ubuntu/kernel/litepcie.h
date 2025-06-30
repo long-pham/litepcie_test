@@ -86,4 +86,7 @@ struct litepcie_ioctl_mmap_dma_update {
 #define LITEPCIE_IOCTL_MMAP_DMA_WRITER_UPDATE    _IOW(LITEPCIE_IOCTL,  26, struct litepcie_ioctl_mmap_dma_update)
 #define LITEPCIE_IOCTL_MMAP_DMA_READER_UPDATE    _IOW(LITEPCIE_IOCTL,  27, struct litepcie_ioctl_mmap_dma_update)
 
+/* Include latency test definitions */
+#include "litepcie_latency.h"
+
 #endif /* _LINUX_LITEPCIE_H */

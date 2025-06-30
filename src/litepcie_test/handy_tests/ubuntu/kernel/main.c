@@ -43,6 +43,7 @@
 #include "config.h"
 #include "flags.h"
 #include "soc.h"
+#include "litepcie_latency.h"
 
 //#define DEBUG_CSR
 //#define DEBUG_MSI
@@ -109,6 +110,9 @@ struct litepcie_chan_priv {
 	bool reader;
 	bool writer;
 };
+
+/* Forward declaration for latency test */
+extern int litepcie_latency_test(struct litepcie_device *dev, struct litepcie_ioctl_latency *lat);
 
 static int litepcie_major;
 static int litepcie_minor_idx;
@@ -890,6 +894,27 @@ static long litepcie_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 
+	}
+	break;
+	case LITEPCIE_IOCTL_LATENCY_TEST:
+	{
+		struct litepcie_ioctl_latency m;
+		int ret_lat;
+
+		if (copy_from_user(&m, (void *)arg, sizeof(m))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		ret_lat = litepcie_latency_test(dev, &m);
+		if (ret_lat == 0) {
+			if (copy_to_user((void *)arg, &m, sizeof(m))) {
+				ret = -EFAULT;
+				break;
+			}
+		} else {
+			ret = ret_lat;
+		}
 	}
 	break;
 	default:

@@ -3,7 +3,12 @@
     "allow": [
       "Bash(chmod:*)",
       "Bash(./build.sh:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(make:*)",
+      "Bash(cmake:*)",
+      "Bash(dmesg:*)",
+      "Bash(./litepcie_latency_test:*)"
     ],
     "deny": []
   }

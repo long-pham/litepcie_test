@@ -86,8 +86,8 @@ class BaseSoC(SoCMini):
 
         # CRG --------------------------------------------------------------------------------------
         self.crg = CRG(platform, sys_clk_freq)
-        platform.add_false_path_constraints(self.crg.cd_sys.clk,
-                                   self.crg.cd_pcie_x4_clk_p.clk)
+        # platform.add_false_path_constraints(self.crg.cd_sys.clk,
+        #                            self.crg.cd_pcie_x4_clk_p.clk)
         # SoCCore ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform, sys_clk_freq, ident="LiteX SoC on Acorn CLE-101/215(+)",
                          **kwargs)
@@ -122,16 +122,16 @@ class BaseSoC(SoCMini):
             # platform.add_period_constraint(self.crg.cd_sys.clk, 1e9 / sys_clk_freq)
 
             # ICAP (For FPGA reload over PCIe).
-            # from litex.soc.cores.icap import ICAP
-            # self.icap = ICAP()
-            # self.icap.add_reload()
-            # self.icap.add_timing_constraints(platform, sys_clk_freq, self.crg.cd_sys.clk)
-            #
-            # # Flash (For SPIFlash update over PCIe).
-            # from litex.soc.cores.gpio import GPIOOut
-            # from litex.soc.cores.spi_flash import S7SPIFlash
-            # self.flash_cs_n = GPIOOut(platform.request("flash_cs_n"))
-            # self.flash = S7SPIFlash(platform.request("flash"), sys_clk_freq, 25e6)
+            from litex.soc.cores.icap import ICAP
+            self.icap = ICAP()
+            self.icap.add_reload()
+            self.icap.add_timing_constraints(platform, sys_clk_freq, self.crg.cd_sys.clk)
+
+            # Flash (For SPIFlash update over PCIe).
+            from litex.soc.cores.gpio import GPIOOut
+            from litex.soc.cores.spi_flash import S7SPIFlash
+            self.flash_cs_n = GPIOOut(platform.request("flash_cs_n"))
+            self.flash = S7SPIFlash(platform.request("flash"), sys_clk_freq, 25e6)
 
         # SATA -------------------------------------------------------------------------------------
         if with_sata:
@@ -240,7 +240,7 @@ def main2():
         'with_ctrl': True,
         # 'with_sdcard': True,
         'with_pcie': True,
-        'sys_clk_freq': 50e6,
+        'sys_clk_freq': 100e6,
         'integrated_sram_size': 8192,
         'integrated_main_ram_size': 8 * 1024,
         'variant': "cle-101",

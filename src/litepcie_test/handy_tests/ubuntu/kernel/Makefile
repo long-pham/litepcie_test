@@ -4,7 +4,7 @@ KERNEL_PATH?=/lib/modules/$(KERNEL_VERSION)/build
 ARCH?=$(shell uname -m)
 
 obj-m = litepcie.o liteuart.o
-litepcie-objs = main.o
+litepcie-objs = main.o litepcie_latency.o
 #liteuart-objs = liteuart.o
 
 
@@ -13,7 +13,7 @@ all: litepcie.ko liteuart.ko
 litepcie.ko: main.c
 	make -C $(KERNEL_PATH) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) M=$(shell pwd) modules
 
-litepcie.ko: litepcie.h config.h flags.h csr.h soc.h
+litepcie.ko: litepcie.h config.h flags.h csr.h soc.h litepcie_latency.h
 
 liteuart.ko: liteuart.c
 	make -C $(KERNEL_PATH) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) M=$(shell pwd) modules

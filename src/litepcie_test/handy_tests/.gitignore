@@ -1,1 +1,14 @@
 _backup
+*.o
+*.ko
+*.cmd
+*.mod
+*.mod.c
+*.mod.o
+*.order
+*.symvers
+modules.order
+Module.symvers
+.tmp_versions/
+build/
+ubuntu/build/
