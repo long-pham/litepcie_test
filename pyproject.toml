@@ -20,6 +20,10 @@ dependencies = [
     "litedram>=2025.4",
     "litescope>=2025.4",
     "ruff>=0.12.1",
+    "liteeth>=2025.4",
+    "litesdcard",
+    "sphinx>=8.1.3",
+    "sphinxcontrib-wavedrom>=3.0.4",
 ]
 
 [project.optional-dependencies]
@@ -39,6 +43,7 @@ pythondata-software-picolibc = { git = "https://github.com/litex-hub/pythondata-
 pythondata-software-compiler-rt = { git = "https://github.com/litex-hub/pythondata-software-compiler_rt.git" }
 litescope = { git = "https://github.com/enjoy-digital/litescope.git" }
 amaranth-yosys = { git = "https://github.com/amaranth-lang/amaranth-yosys.git" }
+litesdcard = { git = "https://github.com/enjoy-digital/litesdcard.git" }
 
 [project.scripts]
 litepcie-test = "litepcie_test:main"

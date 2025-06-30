@@ -15,4 +15,4 @@ fi
 COMMAND=$1
 
 # Execute the command on the remote server in the project directory
-ssh "${REMOTE_USER}@${REMOTE_HOST}" "cd ${REMOTE_PROJECT_DIR} && ${COMMAND}"
+ssh "${REMOTE_USER}@${REMOTE_HOST}" "cd ${REMOTE_PROJECT_DIR} && source .venv/bin/activate && ${COMMAND}"

@@ -1,6 +1,6 @@
 profiles:
   default:
-    direction: push
+    direction: both
     ignore_patterns:
 #    - .git/
     - .venv/
