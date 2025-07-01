@@ -20,6 +20,7 @@ def measure_time(func):
             result = func(*args, **kwargs)
         except Exception as e:
             logger.exception(e)
+            print(e)
             result = None
 
         end_time = time.perf_counter()
