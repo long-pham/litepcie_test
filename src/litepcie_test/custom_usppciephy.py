@@ -116,10 +116,11 @@ set_property -dict [list \
                 # 'enable_jtag_dbg': True,
                 # # 'PF0_Use_Class_Code_Lookup_Assistant': True,  # Already set below
                 # 'pcie_id_if': True,
+                'disable_gt_loc': True,
 
-                'en_gt_selection': True,
-                'select_quad': 'GTH_Quad_224',
-                'mode_selection': 'Advanced',  # Enable advanced mode
+                # 'en_gt_selection': True,
+                # 'select_quad': 'GTH_Quad_224',
+                # 'mode_selection': 'Advanced',  # Enable advanced mode
                 # 'PF0_SUBSYSTEM_ID': '0007',  # Add subsystem ID
                 # BAR0 Config.
                 # ------------
