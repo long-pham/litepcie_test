@@ -107,6 +107,16 @@ class BaseSoC(SoCMini):
             platform.toolchain.pre_placement_commands.append(
                 "set_property LOC GTHE4_CHANNEL_X0Y3 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[3].GTHE4_CHANNEL_PRIM_INST}}]")
 
+            # ICAP (For FPGA reload over PCIe).
+            from litex.soc.cores.icap import ICAP
+            self.icap = ICAP()
+            self.icap.add_reload()
+            self.icap.add_timing_constraints(platform, sys_clk_freq, self.crg.cd_sys.clk)
+
+            # from litex.soc.cores.spi_flash import USSPIFlash
+            # from litex.soc.cores.gpio import GPIOOut
+            # self.flash_cs_n = GPIOOut(platform.request("flash_cs_n"))
+            # self.flash = USSPIFlash(platform.request("flash"), sys_clk_freq, 25e6)
 
         # SD Card ----------------------------------------------------------------------------------
         if with_sdcard:
@@ -143,7 +153,7 @@ def build():
         'with_ctrl': True,
         # 'with_sdcard': True,
         'with_pcie': True,
-        'sys_clk_freq': 180e6,
+        'sys_clk_freq': 125e6,
         'integrated_main_ram_size': 8*1024,
     }
 

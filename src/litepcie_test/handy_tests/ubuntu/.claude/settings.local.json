@@ -8,7 +8,11 @@
       "Bash(make:*)",
       "Bash(cmake:*)",
       "Bash(dmesg:*)",
-      "Bash(./litepcie_latency_test:*)"
+      "Bash(./litepcie_latency_test:*)",
+      "Bash(./litepcie_dma_latency_test:*)",
+      "Bash(./litepcie_dma_latency_simple:*)",
+      "Bash(mkdir:*)",
+      "Bash(sudo:*)"
     ],
     "deny": []
   }

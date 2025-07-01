@@ -62,6 +62,8 @@ add_executable(litepcie_test ${CMAKE_CURRENT_SOURCE_DIR}/user/litepcie_test.c)
 # Executable targets - Latency tests
 add_executable(litepcie_latency_test litepcie_latency_test.c)
 add_executable(litepcie_latency_kernel litepcie_latency_kernel.c)
+add_executable(litepcie_dma_latency_test litepcie_dma_latency_test.c)
+add_executable(litepcie_dma_latency_simple litepcie_dma_latency_simple.c)
 
 # Link libraries - Optimized DMA tests
 target_link_libraries(litepcie_dma_test_optimized 
@@ -97,6 +99,19 @@ target_link_libraries(litepcie_latency_kernel
     litepcie
 )
 
+target_link_libraries(litepcie_dma_latency_test
+    litepcie
+    Threads::Threads
+    rt
+    m
+)
+
+target_link_libraries(litepcie_dma_latency_simple
+    litepcie
+    rt
+    m
+)
+
 # Installation
 install(TARGETS 
     litepcie_dma_test_optimized 
@@ -105,6 +120,8 @@ install(TARGETS
     litepcie_test
     litepcie_latency_test
     litepcie_latency_kernel
+    litepcie_dma_latency_test
+    litepcie_dma_latency_simple
     RUNTIME DESTINATION bin
 )
 

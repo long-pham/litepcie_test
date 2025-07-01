@@ -1,6 +1,6 @@
 /*
  * LitePCIe Round-Trip Latency Test
- * 
+ *
  * Measures PCIe round-trip latency using register read/write operations.
  * Uses the scratch register for minimal overhead measurements.
  */
@@ -21,6 +21,7 @@
 #include <sched.h>
 
 #include "litepcie.h"
+#include "mem.h"
 
 /* Test configuration */
 #define DEFAULT_ITERATIONS 10000
@@ -61,12 +62,12 @@ static uint32_t reg_read(int fd, uint32_t addr) {
     struct litepcie_ioctl_reg reg;
     reg.addr = addr;
     reg.is_write = 0;
-    
+
     if (ioctl(fd, LITEPCIE_IOCTL_REG, &reg) < 0) {
         perror("ioctl read");
         return 0;
     }
-    
+
     return reg.val;
 }
 
@@ -76,7 +77,7 @@ static void reg_write(int fd, uint32_t addr, uint32_t val) {
     reg.addr = addr;
     reg.val = val;
     reg.is_write = 1;
-    
+
     if (ioctl(fd, LITEPCIE_IOCTL_REG, &reg) < 0) {
         perror("ioctl write");
     }
@@ -86,23 +87,23 @@ static void reg_write(int fd, uint32_t addr, uint32_t val) {
 static uint64_t measure_latency(int fd, uint32_t test_value) {
     uint64_t start, end;
     uint32_t readback;
-    
+
     start = get_time_ns();
-    
+
     /* Write to scratch register */
     reg_write(fd, SCRATCH_REGISTER, test_value);
-    
+
     /* Read back to ensure completion */
     readback = reg_read(fd, SCRATCH_REGISTER);
-    
+
     end = get_time_ns();
-    
+
     /* Verify data integrity */
     if (readback != test_value) {
-        fprintf(stderr, "Data mismatch: wrote 0x%08x, read 0x%08x\n", 
+        fprintf(stderr, "Data mismatch: wrote 0x%08x, read 0x%08x\n",
                 test_value, readback);
     }
-    
+
     return end - start;
 }
 
@@ -117,23 +118,23 @@ static int compare_uint64(const void *a, const void *b) {
 static void calculate_stats(uint64_t *latencies, int count, latency_stats_t *stats) {
     double sum = 0, sum_sq = 0;
     int i;
-    
+
     /* Sort for percentiles */
     qsort(latencies, count, sizeof(uint64_t), compare_uint64);
-    
+
     /* Calculate basic stats */
     stats->min = latencies[0] / 1000.0;  /* Convert to microseconds */
     stats->max = latencies[count-1] / 1000.0;
-    
+
     for (i = 0; i < count; i++) {
         double val = latencies[i] / 1000.0;
         sum += val;
         sum_sq += val * val;
     }
-    
+
     stats->mean = sum / count;
     stats->stddev = sqrt((sum_sq / count) - (stats->mean * stats->mean));
-    
+
     /* Calculate percentiles */
     stats->p50 = latencies[count * 50 / 100] / 1000.0;
     stats->p90 = latencies[count * 90 / 100] / 1000.0;
@@ -182,7 +183,7 @@ int main(int argc, char *argv[]) {
     uint64_t *latencies;
     latency_stats_t stats;
     int i;
-    
+
     /* Parse options */
     while ((opt = getopt(argc, argv, "d:n:w:c:pvh")) != -1) {
         switch (opt) {
@@ -216,10 +217,10 @@ int main(int argc, char *argv[]) {
             return 1;
         }
     }
-    
+
     /* Setup signal handler */
     signal(SIGINT, signal_handler);
-    
+
     /* Set CPU affinity if requested */
     if (cpu_core >= 0) {
         cpu_set_t cpuset;
@@ -232,7 +233,7 @@ int main(int argc, char *argv[]) {
             printf("Process pinned to CPU core %d\n", cpu_core);
         }
     }
-    
+
     /* Set high priority if requested */
     if (high_priority) {
         struct sched_param param;
@@ -244,7 +245,7 @@ int main(int argc, char *argv[]) {
             printf("Running with real-time priority\n");
         }
     }
-    
+
     /* Open device */
     fd = open(device, O_RDWR);
     if (fd < 0) {
@@ -252,7 +253,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Failed to open %s\n", device);
         return 1;
     }
-    
+
     /* Allocate measurement buffer */
     latencies = malloc(iterations * sizeof(uint64_t));
     if (!latencies) {
@@ -260,12 +261,12 @@ int main(int argc, char *argv[]) {
         close(fd);
         return 1;
     }
-    
+
     printf("LitePCIe Round-Trip Latency Test\n");
     printf("Device: %s\n", device);
     printf("Iterations: %d (after %d warmup)\n", iterations, warmup);
     printf("Measuring latency using scratch register at 0x%08x\n\n", SCRATCH_REGISTER);
-    
+
     /* Warmup */
     if (warmup > 0) {
         printf("Warming up...");
@@ -275,42 +276,42 @@ int main(int argc, char *argv[]) {
         }
         printf(" done\n");
     }
-    
+
     /* Main measurement loop */
     printf("Measuring latency...");
     fflush(stdout);
-    
+
     for (i = 0; i < iterations && keep_running; i++) {
-        uint32_t test_value = 0xDEADBEEF ^ i;  /* Varying test pattern */
+        uint32_t test_value = 0xcafebabe ^ i;  /* Varying test pattern */
         latencies[i] = measure_latency(fd, test_value);
-        
+
         if (verbose && (i % 1000 == 0)) {
-            printf("\r  Progress: %d/%d (%.1f%%)", 
+            printf("\r  Progress: %d/%d (%.1f%%)",
                    i, iterations, 100.0 * i / iterations);
             fflush(stdout);
         }
     }
-    
+
     if (verbose) {
         printf("\r                                          \r");
     }
     printf(" done\n");
-    
+
     /* Calculate and print statistics */
     if (i > 0) {
         calculate_stats(latencies, i, &stats);
         print_stats(&stats);
-        
+
         /* Additional analysis */
         printf("\nAnalysis:\n");
         printf("  Total measurements: %d\n", i);
         printf("  Approximate overhead: ~%.1f µs per syscall\n", stats.min / 2);
         printf("  Estimated PCIe RTT: ~%.1f µs\n", stats.min - (stats.min / 2));
     }
-    
+
     /* Cleanup */
     free(latencies);
     close(fd);
-    
+
     return 0;
 }
