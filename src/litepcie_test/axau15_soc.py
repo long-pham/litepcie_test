@@ -3,8 +3,7 @@ from loguru import logger
 
 from litex.gen import LiteXModule, Signal, ClockDomain
 
-from litex_boards.platforms import alinx_axau15
-
+# from litex_boards.platforms import alinx_axau15
 
 from litex.soc.cores.clock import USMMCM, USIDELAYCTRL
 from litex.soc.integration.soc_core import SoCCore, SoCMini
@@ -16,7 +15,8 @@ from litedram.phy import usddrphy
 
 from liteeth.phy.usrgmii import LiteEthPHYRGMII
 
-from litepcie.phy.usppciephy import USPPCIEPHY
+# from litepcie.phy.usppciephy import USPPCIEPHY
+from litepcie_test.custom_usppciephy import CustomUSPPCIEPHY
 from litepcie.software import generate_litepcie_software
 import os
 from litex.soc.integration.builder import Builder
@@ -61,10 +61,12 @@ class BaseSoC(SoCMini):
                  with_led_chaser=True,
                  with_pcie=False,
                  pcie_speed="gen4",
-                #  pcie_speed="gen3",
+                 #  pcie_speed="gen3",
                  with_sdcard=False,
                  **kwargs):
-        platform = alinx_axau15.Platform()
+        from litex_platform_boards import axau15
+        # from litex_boards.platforms import alinx_axau15 as axau15
+        platform = axau15.Platform()
 
         # CRG --------------------------------------------------------------------------------------
         self.crg = _CRG(platform, sys_clk_freq)
@@ -88,11 +90,21 @@ class BaseSoC(SoCMini):
 
         # PCIe -------------------------------------------------------------------------------------
         if with_pcie:
-            self.pcie_phy = USPPCIEPHY(platform, platform.request("pcie_x4"),
-                                       speed=pcie_speed,
-                                       data_width={"gen3": 128, "gen4": 256}[pcie_speed],
-                                       ip_name="pcie4c_uscale_plus",
-                                       bar0_size=0x20000,)
+            self.pcie_phy = CustomUSPPCIEPHY(
+                platform,
+                platform.request("pcie_x4"),
+                # platform.request("pcie_x1"),
+                speed=pcie_speed,
+                data_width={"gen3": 128, "gen4": 256}[pcie_speed],
+                #
+                # data_width=128,
+                # axisten_freq=125,
+
+                ip_name="pcie4c_uscale_plus",
+                bar0_size=0x400000,  # 8MB - Control registers (BAR0)
+                # bar2_size=0x100000,    # 1MB - DMA buffers (64-bit BAR, uses BAR2+3)
+                # bar4_size=0x200000,    # 2MB - Memory mapped region (64-bit BAR, uses BAR4+5)
+            )
             self.add_pcie(phy=self.pcie_phy, ndmas=1)
 
             # Set manual locations to avoid Vivado to remap lanes to X0Y4, X0Y5, X0Y6, X0Y7.
@@ -108,10 +120,10 @@ class BaseSoC(SoCMini):
                 "set_property LOC GTHE4_CHANNEL_X0Y3 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[3].GTHE4_CHANNEL_PRIM_INST}}]")
 
             # ICAP (For FPGA reload over PCIe).
-            from litex.soc.cores.icap import ICAP
-            self.icap = ICAP()
-            self.icap.add_reload()
-            self.icap.add_timing_constraints(platform, sys_clk_freq, self.crg.cd_sys.clk)
+            # from litex.soc.cores.icap import ICAP
+            # self.icap = ICAP()
+            # self.icap.add_reload()
+            # self.icap.add_timing_constraints(platform, sys_clk_freq, self.crg.cd_sys.clk)
 
             # from litex.soc.cores.spi_flash import USSPIFlash
             # from litex.soc.cores.gpio import GPIOOut
@@ -137,6 +149,7 @@ class BaseSoC(SoCMini):
         duty = int(duty * period)
         self.leds.add_pwm(default_width=duty, default_period=period)
 
+
 @measure_time
 def build():
     # argdict = {'bus_standard': 'wishbone', 'bus_data_width': 32, 'bus_address_width': 32,
@@ -153,13 +166,11 @@ def build():
         'with_ctrl': True,
         # 'with_sdcard': True,
         'with_pcie': True,
-        'sys_clk_freq': 125e6,
-        'integrated_main_ram_size': 8*1024,
+        'sys_clk_freq': 100e6,
+        'integrated_main_ram_size': 8 * 1024,
     }
 
-    soc = BaseSoC(
-        # sys_clk_freq=int(125e6),
-        **argdict)
+    soc = BaseSoC(**argdict)
 
     builder = Builder(
         soc=soc,
