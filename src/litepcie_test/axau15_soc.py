@@ -60,13 +60,13 @@ class BaseSoC(SoCMini):
                  remote_ip=None,
                  with_led_chaser=True,
                  with_pcie=False,
-                 pcie_speed="gen4",
+                 # pcie_speed="gen4",
                  #  pcie_speed="gen3",
                  with_sdcard=False,
                  **kwargs):
         from litex_platform_boards import axau15
         # from litex_boards.platforms import alinx_axau15 as axau15
-        platform = axau15.Platform()
+        self.platform = platform = axau15.Platform()
 
         # CRG --------------------------------------------------------------------------------------
         self.crg = _CRG(platform, sys_clk_freq)
@@ -90,34 +90,8 @@ class BaseSoC(SoCMini):
 
         # PCIe -------------------------------------------------------------------------------------
         if with_pcie:
-            self.pcie_phy = CustomUSPPCIEPHY(
-                platform,
-                platform.request("pcie_x4"),
-                # platform.request("pcie_x1"),
-                speed=pcie_speed,
-                data_width={"gen3": 128, "gen4": 256}[pcie_speed],
-                #
-                # data_width=128,
-                # axisten_freq=125,
-
-                ip_name="pcie4c_uscale_plus",
-                bar0_size=0x400000,  # 8MB - Control registers (BAR0)
-                # bar2_size=0x100000,    # 1MB - DMA buffers (64-bit BAR, uses BAR2+3)
-                # bar4_size=0x200000,    # 2MB - Memory mapped region (64-bit BAR, uses BAR4+5)
-            )
-            self.add_pcie(phy=self.pcie_phy, ndmas=1)
-
-            # Set manual locations to avoid Vivado to remap lanes to X0Y4, X0Y5, X0Y6, X0Y7.
-            platform.toolchain.pre_placement_commands.append(
-                "reset_property LOC [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*GTHE4_CHANNEL_PRIM_INST}}]")
-            platform.toolchain.pre_placement_commands.append(
-                "set_property LOC GTHE4_CHANNEL_X0Y0 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[0].GTHE4_CHANNEL_PRIM_INST}}]")
-            platform.toolchain.pre_placement_commands.append(
-                "set_property LOC GTHE4_CHANNEL_X0Y1 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[1].GTHE4_CHANNEL_PRIM_INST}}]")
-            platform.toolchain.pre_placement_commands.append(
-                "set_property LOC GTHE4_CHANNEL_X0Y2 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[2].GTHE4_CHANNEL_PRIM_INST}}]")
-            platform.toolchain.pre_placement_commands.append(
-                "set_property LOC GTHE4_CHANNEL_X0Y3 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[3].GTHE4_CHANNEL_PRIM_INST}}]")
+            self._add_pcie_x4()
+            # self._add_pcie_x1()
 
             # ICAP (For FPGA reload over PCIe).
             # from litex.soc.cores.icap import ICAP
@@ -140,6 +114,151 @@ class BaseSoC(SoCMini):
         #         pads=platform.request_all("user_led"),
         #         sys_clk_freq=sys_clk_freq)
         self.add_led_chaser()
+
+    def _add_pcie_x1(self, pcie_speed="gen4"):
+        """ for some reasons, x1 doesn't work yet
+        """
+        platform = self.platform
+        self.pcie_phy = CustomUSPPCIEPHY(
+            platform,
+            platform.request("pcie_x1"),
+            speed=pcie_speed,
+            data_width=128,  # Always 128 for x1, regardless of speed
+            axisten_freq=125,
+            ip_name="pcie4c_uscale_plus",
+            bar0_size=0x800000,  # 8MB - Control registers (BAR0)
+            bar2_size=0x800000,  # 1MB - DMA buffers (64-bit BAR, uses BAR2+3)
+        )
+        self.add_pcie(phy=self.pcie_phy, ndmas=1, with_dma_monitor=True,
+                      with_dma_synchronizer=True,
+                      with_dma_status=True, address_width=32)
+
+        # Only need one LOC constraint for x1
+        platform.toolchain.pre_placement_commands.append(
+            "reset_property LOC [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*GTHE4_CHANNEL_PRIM_INST}}]")
+        platform.toolchain.pre_placement_commands.append(
+            "set_property LOC GTHE4_CHANNEL_X0Y0 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[0].GTHE4_CHANNEL_PRIM_INST}}]")
+
+    def _add_pcie_x4(self, pcie_speed="gen4", ):
+        platform = self.platform
+        self.pcie_phy = CustomUSPPCIEPHY(
+            platform,
+            platform.request("pcie_x4"),
+            # platform.request("pcie_x1"),
+            speed=pcie_speed,
+            data_width={"gen3": 128, "gen4": 256}[pcie_speed],
+            # data_width=128,
+            # axisten_freq=125,
+
+            ip_name="pcie4c_uscale_plus",
+            bar0_size=0x800000,  # 8MB - Control registers (BAR0)
+            bar2_size=0x800000,  # 1MB - DMA buffers (64-bit BAR, uses BAR2+3)
+            # bar4_size=0x200000,    # 2MB - Memory mapped region (64-bit BAR, uses BAR4+5)
+        )
+        self.add_pcie(phy=self.pcie_phy, ndmas=1, with_dma_monitor=True,
+                      with_dma_synchronizer=True,
+                      with_dma_status=True, address_width=32,)
+
+        # Set manual locations to avoid Vivado to remap lanes to X0Y4, X0Y5, X0Y6, X0Y7.
+        platform.toolchain.pre_placement_commands.append(
+            "reset_property LOC [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*GTHE4_CHANNEL_PRIM_INST}}]")
+        platform.toolchain.pre_placement_commands.append(
+            "set_property LOC GTHE4_CHANNEL_X0Y0 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[0].GTHE4_CHANNEL_PRIM_INST}}]")
+        platform.toolchain.pre_placement_commands.append(
+            "set_property LOC GTHE4_CHANNEL_X0Y1 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[1].GTHE4_CHANNEL_PRIM_INST}}]")
+        platform.toolchain.pre_placement_commands.append(
+            "set_property LOC GTHE4_CHANNEL_X0Y2 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[2].GTHE4_CHANNEL_PRIM_INST}}]")
+        platform.toolchain.pre_placement_commands.append(
+            "set_property LOC GTHE4_CHANNEL_X0Y3 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[3].GTHE4_CHANNEL_PRIM_INST}}]")
+
+    # Add PCIe -------------------------------------------------------------------------------------
+    # def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8, address_width=32,
+    #              data_width=None,
+    #              with_dma_buffering=True, dma_buffering_depth=1024,
+    #              with_dma_loopback=True,
+    #              with_dma_synchronizer=False,
+    #              with_dma_monitor=False,
+    #              with_dma_status=False, status_width=32,
+    #              with_dma_table=True,
+    #              with_msi=True, msi_type="msi", msi_width=32, msis={},
+    #              with_ptm=False,
+    #              bar2_base=None,
+    #              ):
+    #     # Imports
+    #     from litepcie.phy.uspciephy import USPCIEPHY
+    #     from litepcie.phy.usppciephy import USPPCIEPHY
+    #     from litepcie.core import LitePCIeEndpoint, LitePCIeMSI, LitePCIeMSIMultiVector, \
+    #         LitePCIeMSIX
+    #     from litepcie.frontend.dma import LitePCIeDMA
+    #     from litepcie.frontend.wishbone import LitePCIeWishboneMaster
+    #
+    #     # Checks.
+    #     assert self.csr.data_width == 32
+    #
+    #     # Endpoint.
+    #     self.check_if_exists(f"{name}_endpoint")
+    #     endpoint = LitePCIeEndpoint(phy,
+    #                                 max_pending_requests=max_pending_requests,
+    #                                 endianness=phy.endianness,
+    #                                 address_width=address_width,
+    #                                 with_ptm=with_ptm,
+    #                                 )
+    #     self.add_module(name=f"{name}_endpoint", module=endpoint)
+    #
+    #     # MMAP.
+    #     self.check_if_exists(f"{name}_mmap")
+    #     mmap = LitePCIeWishboneMaster(self.pcie_endpoint,
+    #                                   base_address=self.mem_map["csr"] )
+    #     self.add_module(name=f"{name}_mmap", module=mmap)
+    #     self.bus.add_master(name=f"{name}_mmap", master=mmap.wishbone)
+    #
+    #     # if bar2_base is not None
+    #
+    #     # MSI.
+    #     if with_msi:
+    #         assert msi_type in ["msi", "msi-multi-vector", "msi-x"]
+    #         self.check_if_exists(f"{name}_msi")
+    #         if msi_type == "msi":
+    #             msi = LitePCIeMSI(width=msi_width)
+    #         if msi_type == "msi-multi-vector":
+    #             msi = LitePCIeMSIMultiVector(width=msi_width)
+    #         if msi_type == "msi-x":
+    #             msi = LitePCIeMSIX(endpoint=self.pcie_endpoint, width=msi_width)
+    #         self.add_module(name=f"{name}_msi", module=msi)
+    #         if msi_type in ["msi", "msi-multi-vector"]:
+    #             self.comb += msi.source.connect(phy.msi)
+    #         self.msis = msis
+    #
+    #     # DMAs.
+    #     for i in range(ndmas):
+    #         assert with_msi
+    #         self.check_if_exists(f"{name}_dma{i}")
+    #         dma = LitePCIeDMA(phy, endpoint,
+    #                           with_buffering=with_dma_buffering,
+    #                           buffering_depth=dma_buffering_depth,
+    #                           with_loopback=with_dma_loopback,
+    #                           with_synchronizer=with_dma_synchronizer,
+    #                           with_monitor=with_dma_monitor,
+    #                           with_status=with_dma_status, status_width=status_width,
+    #                           with_table=with_dma_table,
+    #                           address_width=address_width,
+    #                           data_width=data_width,
+    #                           )
+    #         self.add_module(name=f"{name}_dma{i}", module=dma)
+    #         if with_dma_table:
+    #             self.msis[f"{name.upper()}_DMA{i}_WRITER"] = dma.writer.irq
+    #             self.msis[f"{name.upper()}_DMA{i}_READER"] = dma.reader.irq
+    #     self.add_constant("DMA_CHANNELS", ndmas)
+    #     self.add_constant("DMA_ADDR_WIDTH", address_width)
+    #
+    #     # Map/Connect MSI IRQs.
+    #     if with_msi:
+    #         for i, (k, v) in enumerate(sorted(self.msis.items())):
+    #             self.comb += msi.irqs[i].eq(v)
+    #             self.add_constant(k + "_INTERRUPT", i)
+    #
+    #     # Timing constraints.
+    #     self.platform.add_false_path_constraints(self.crg.cd_sys.clk, phy.cd_pcie.clk)
 
     def add_led_chaser(self, pads=None, duty=0.01, period=10240):
         if pads is None:
@@ -174,7 +293,7 @@ def build():
 
     builder = Builder(
         soc=soc,
-        compile_software=True,
+        # compile_software=True,
         compile_gateware=True,
         generate_doc=True,
 

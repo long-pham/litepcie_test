@@ -114,39 +114,25 @@ set_property -dict [list \
 
                 # 'enable_ibert': True,
                 # 'enable_jtag_dbg': True,
-                # 'PF0_Use_Class_Code_Lookup_Assistant': True,
+                # # 'PF0_Use_Class_Code_Lookup_Assistant': True,  # Already set below
                 # 'pcie_id_if': True,
 
+                'en_gt_selection': True,
+                'select_quad': 'GTH_Quad_224',
+                'mode_selection': 'Advanced',  # Enable advanced mode
+                # 'PF0_SUBSYSTEM_ID': '0007',  # Add subsystem ID
                 # BAR0 Config.
                 # ------------
-                # 'pf0_bar0_64bit': True,
-                # 'pf0_bar0_prefetchable': True,
+                'pf0_bar0_64bit': True,
+                'pf0_bar0_prefetchable': True,
                 "pf0_bar0_scale": "Megabytes",  # FIXME.
                 "pf0_bar0_size": max(self.bar0_size / (1024*1024), 1),  # FIXME.
-                'pf0_base_class_menu': 'Base_system_peripherals',
+                'pf0_base_class_menu': 'Mass_storage_controller',
+                'PF0_Use_Class_Code_Lookup_Assistant': True,
 
                 # Interrupt Config.
                 # -----------------
                 "PF0_INTERRUPT_PIN": "NONE",
-
-                #
-                # # Generic Config.
-                # "PL_LINK_CAP_MAX_LINK_WIDTH"   : f"X{self.nlanes}",
-                # "PL_LINK_CAP_MAX_LINK_SPEED"   : {"gen3": "8.0_GT/s", "gen4": "16.0_GT/s"}[self.speed],
-                # "axisten_if_width"             : f"{self.pcie_data_width}_bit",
-                # "AXISTEN_IF_RC_STRADDLE"       : False,
-                # "PF0_DEVICE_ID"                : {"gen3": 9030, "gen4": 9040}[self.speed] + self.nlanes,
-                # "axisten_freq"                 : 250,#self.axisten_freq,
-                # "axisten_if_enable_client_tag" : True,
-                # "aspm_support"                 : "No_ASPM",
-                # "plltype"                      : "QPLL0",
-                #
-                # # BAR0 Config (always enabled in base class)
-                # "pf0_bar0_scale"               : "Megabytes",
-                # "pf0_bar0_size"                : max(self.bar0_size // (1024*1024), 1),  # Convert to MB
-                #
-                # # Interrupt Config
-                # "PF0_INTERRUPT_PIN"            : "NONE",
             }
 
             # Add additional BARs if enabled
