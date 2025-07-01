@@ -44,7 +44,8 @@ class BaseSoC(SoCMini):
         # kwargs["uart_name"] = "jtag_uart"
         SoCMini.__init__(self, platform, sys_clk_freq, ident="LiteX SoC on XEM8320", **kwargs)
 
-        self._add_pcie_x4(pcie_speed="gen3")
+        # self._add_pcie_x4(pcie_speed="gen3")
+        self._add_pcie_x2(pcie_speed="gen3")
         self.add_led_chaser()
 
     def add_led_chaser(self, pads=None, duty=0.01, period=10240):
@@ -55,6 +56,23 @@ class BaseSoC(SoCMini):
         duty = int(duty * period)
         self.leds.add_pwm(default_width=duty, default_period=period)
 
+    def _add_pcie_x2(self, pcie_speed="gen3", ):
+        platform = self.platform
+        self.pcie_phy = CustomUSPPCIEPHY(
+            platform,
+            platform.request("pcie_x2"),
+            speed=pcie_speed,
+            data_width={"gen3": 128, "gen4": 256}[pcie_speed],
+            axisten_freq=125,
+            ip_name="pcie4_uscale_plus",
+            bar0_size=0x800000,  # 8MB - Control registers (BAR0)
+            bar2_size=0x800000,  # 1MB - DMA buffers (64-bit BAR, uses BAR2+3)
+            # bar4_size=0x200000,    # 2MB - Memory mapped region (64-bit BAR, uses BAR4+5)
+        )
+        self.add_pcie(phy=self.pcie_phy, ndmas=1, with_dma_monitor=True,
+                      with_dma_synchronizer=True,
+                      with_dma_status=True, address_width=32, )
+
     def _add_pcie_x4(self, pcie_speed="gen4", ):
         platform = self.platform
         self.pcie_phy = CustomUSPPCIEPHY(
@@ -63,8 +81,6 @@ class BaseSoC(SoCMini):
             # platform.request("pcie_x1"),
             speed=pcie_speed,
             data_width={"gen3": 128, "gen4": 256}[pcie_speed],
-            # data_width=128,
-            # axisten_freq=125,
 
             ip_name="pcie4_uscale_plus",
             bar0_size=0x800000,  # 8MB - Control registers (BAR0)
@@ -95,56 +111,10 @@ def build():
         # compile_software=True,
         compile_gateware=True,
         generate_doc=True,
-
     )
 
     builder.build(run=True)
     generate_litepcie_software(soc, os.path.join(builder.output_dir, "driver"))
-
-
-def main2():
-    from litex.build.parser import LiteXArgumentParser
-    parser = LiteXArgumentParser(platform=opalkelly_xem8320.Platform,
-                                 description="LiteX SoC on XEM8320.")
-    parser.add_target_argument("--sys-clk-freq", default=125e6, type=float,
-                               help="System clock frequency.")
-    # ethopts = parser.target_group.add_mutually_exclusive_group()
-    # ethopts.add_argument("--with-ethernet",        action="store_true",    help="Enable Ethernet support.")
-    # ethopts.add_argument("--with-etherbone",       action="store_true",    help="Enable Etherbone support.")
-    # parser.add_target_argument("--eth-ip",         default="192.168.1.50", help="Ethernet/Etherbone IP address.")
-    # parser.add_target_argument("--eth-dynamic-ip", action="store_true",    help="Enable dynamic Ethernet IP addresses setting.")
-    viopts = parser.target_group.add_mutually_exclusive_group()
-    viopts.add_argument("--with-video-terminal", action="store_true",
-                        help="Enable Video Terminal (HDMI).")
-    viopts.add_argument("--with-video-framebuffer", action="store_true",
-                        help="Enable Video Framebuffer (HDMI).")
-    args = parser.parse_args()
-
-    # assert not (args.with_etherbone and args.eth_dynamic_ip)
-
-    soc = BaseSoC(
-        sys_clk_freq=args.sys_clk_freq,
-        # with_ethernet         = args.with_ethernet,
-        # with_etherbone        = args.with_etherbone,
-        # eth_ip                = args.eth_ip,
-        # eth_dynamic_ip        = args.eth_dynamic_ip,
-        with_video_terminal=args.with_video_terminal,
-        with_video_framebuffer=args.with_video_framebuffer,
-        **parser.soc_argdict
-    )
-
-    soc.platform.add_extension(opalkelly_xem8320._sdcard_pmod_io)
-    soc.add_spi_sdcard()
-
-    builder = Builder(soc, **parser.builder_argdict)
-    if args.build:
-        builder.build(**parser.toolchain_argdict)
-
-    if args.load:
-        prog = soc.platform.create_programmer()
-        prog.load_bitstream(builder.get_bitstream_filename(mode="sram"))
-        # TODO: add option for FrontPanel Programming
-
 
 if __name__ == "__main__":
     build()

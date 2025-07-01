@@ -133,6 +133,15 @@ _io = [
      Subsignal("tx_p", Pins("AF7 AE9 AD7 AC5")),
      Subsignal("tx_n", Pins("AF6 AE8 AD6 AC4"))
      ),
+    ("pcie_x2", 0,
+     Subsignal("rst_n", Pins("J10"), IOStandard("LVCMOS18")),
+     Subsignal("clk_p", Pins("AB7")),
+     Subsignal("clk_n", Pins("AB6")),
+     Subsignal("rx_p", Pins("AF2 AE4")),
+     Subsignal("rx_n", Pins("AF1 AE3")),
+     Subsignal("tx_p", Pins("AF7 AE9")),
+     Subsignal("tx_n", Pins("AF6 AE8"))
+     ),
 
 ]
 
