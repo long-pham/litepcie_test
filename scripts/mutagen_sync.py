@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Improved Mutagen Sync Manager for FPGA Development
+Mutagen Sync Manager for FPGA Development
 
 This script manages bidirectional file synchronization between local and remote
 development environments using Mutagen.
@@ -19,6 +19,19 @@ from typing import Any
 import click
 import yaml
 from loguru import logger
+from colorama import init as colorama_init
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
+from rich.text import Text
+from rich.live import Live
+from rich import box
+
+# Initialize colorama for cross-platform color support
+colorama_init()
+
+# Initialize rich console
+console = Console()
 
 # Configure logger to avoid duplicate messages
 logger.remove()  # Remove default handler
@@ -62,17 +75,23 @@ class SyncConfig:
 class ConfigManager:
     """Manages configuration loading and validation"""
 
-    CONFIG_SEARCH_PATHS = [
-        Path.cwd() / ".mutagen-sync.yml",
-        Path.cwd() / "mutagen-sync.yml",
-        Path.home() / ".config" / "mutagen" / "sync.yml",
-        Path.home() / ".mutagen-sync.yml"
-    ]
+    @classmethod
+    def get_config_search_paths(cls) -> list[Path]:
+        """Get configuration search paths including script directory"""
+        script_dir = Path(__file__).resolve().parent
+        return [
+            script_dir / "mutagen-sync.yml",
+            script_dir / ".mutagen-sync.yml",
+            Path.cwd() / ".mutagen-sync.yml",
+            Path.cwd() / "mutagen-sync.yml",
+            Path.home() / ".config" / "mutagen" / "sync.yml",
+            Path.home() / ".mutagen-sync.yml"
+        ]
 
     @classmethod
     def find_config_file(cls) -> Path | None:
         """Search for configuration file in standard locations"""
-        for path in cls.CONFIG_SEARCH_PATHS:
+        for path in cls.get_config_search_paths():
             if path.exists():
                 logger.debug(f"Found config file at {path}")
                 return path
@@ -180,7 +199,8 @@ class SSHConnection:
             return False, f"SSH connection error: {str(e)}"
 
     @staticmethod
-    def validate_remote_path(host: str, path: str, timeout: int = 10, create_if_missing: bool = True) -> tuple[bool, str]:
+    def validate_remote_path(host: str, path: str, timeout: int = 10,
+                             create_if_missing: bool = True) -> tuple[bool, str]:
         """Validate that remote path exists, optionally creating it if missing"""
         try:
             # First check if path exists
@@ -195,7 +215,8 @@ class SSHConnection:
                 # Try to create the directory
                 logger.info(f"Remote path '{path}' does not exist, attempting to create it...")
                 mkdir_cmd = ['ssh', '-o', f'ConnectTimeout={timeout}', host, 'mkdir', '-p', path]
-                mkdir_result = subprocess.run(mkdir_cmd, capture_output=True, text=True, timeout=timeout + 5)
+                mkdir_result = subprocess.run(mkdir_cmd, capture_output=True, text=True,
+                                              timeout=timeout + 5)
 
                 if mkdir_result.returncode == 0:
                     logger.info(f"Successfully created remote path: {path}")
@@ -225,9 +246,26 @@ class GitignoreParser:
             return self._patterns_cache
 
         patterns = ['.venv/**', '__pycache__/**', '*.pyc']  # Default patterns
+
+        # Check for .mutagenignore first
+        mutagenignore_path = self.base_path / '.mutagenignore'
         gitignore_path = self.base_path / '.gitignore'
 
-        if gitignore_path.exists():
+        if mutagenignore_path.exists():
+            # Use .mutagenignore if it exists
+            try:
+                with open(mutagenignore_path) as f:
+                    patterns = []  # Reset patterns when using .mutagenignore
+                    for line in f:
+                        # Remove comments and whitespace
+                        line = line.split('#')[0].strip()
+                        if line and not line.startswith('#'):
+                            patterns.append(line)
+
+                logger.info(f"Using .mutagenignore with {len(patterns)} patterns")
+            except Exception as e:
+                logger.warning(f"Failed to read .mutagenignore: {e}")
+        elif gitignore_path.exists():
             try:
                 with open(gitignore_path) as f:
                     for line in f:
@@ -285,6 +323,9 @@ class MutagenSync:
         self.ssh = SSHConnection()
         self.gitignore_parser = GitignoreParser(config.local_path)
         self._session_prefix = "fpga-sync"
+        self._no_emoji = False
+        self._show_full_paths = False
+        self._sessions_cache = []
 
     def validate_environment(self, create_remote_dir: bool = True) -> None:
         """Validate local and remote environments"""
@@ -306,7 +347,8 @@ class MutagenSync:
                 logger.warning(f"SSH connection attempt {attempt + 1} failed: {message}")
                 time.sleep(self.config.retry_delay)
             else:
-                raise click.ClickException(f"Failed to connect after {self.config.retry_count} attempts: {message}")
+                raise click.ClickException(
+                    f"Failed to connect after {self.config.retry_count} attempts: {message}")
 
         # Validate remote path
         success, message = self.ssh.validate_remote_path(
@@ -336,7 +378,8 @@ class MutagenSync:
             logger.debug("Mutagen daemon started")
         except subprocess.CalledProcessError as e:
             if b"already running" not in e.stderr:
-                raise click.ClickException(f"Failed to start mutagen daemon: {e.stderr.decode()}") from e
+                raise click.ClickException(
+                    f"Failed to start mutagen daemon: {e.stderr.decode()}") from e
 
     def get_session_name(self, direction: str) -> str:
         """Generate session name"""
@@ -420,7 +463,8 @@ class MutagenSync:
             raise click.ClickException(f"Failed to create sync session: {e}") from e
 
     def start_sync(self, direction: SyncDirection | None = None,
-                   force: bool = False, dry_run: bool = False, create_remote_dir: bool = True) -> None:
+                   force: bool = False, dry_run: bool = False,
+                   create_remote_dir: bool = True) -> None:
         """Start sync sessions"""
         direction = direction or self.config.direction
 
@@ -444,7 +488,8 @@ class MutagenSync:
             session_name = self.get_session_name(dir_to_create.value)
 
             if session_name in existing_sessions and not force:
-                click.secho(f"Session {session_name} already exists. Use --force to recreate.", fg='yellow')
+                click.secho(f"Session {session_name} already exists. Use --force to recreate.",
+                            fg='yellow')
                 continue
 
             if session_name in existing_sessions and force:
@@ -539,17 +584,656 @@ class MutagenSync:
             try:
                 while True:
                     click.clear()
-                    click.secho(f"=== Mutagen Sync Status (Profile: {self.config.profile_name}) ===",
-                                fg='blue', bold=True)
-                    subprocess.run(['mutagen', 'sync', 'list'])
+                    self._display_formatted_status()
                     click.secho("\nPress Ctrl+C to exit watch mode", fg='yellow')
                     time.sleep(2)
             except KeyboardInterrupt:
                 click.echo("\nExiting watch mode")
         else:
-            click.secho(f"=== Mutagen Sync Status (Profile: {self.config.profile_name}) ===",
-                        fg='blue', bold=True)
-            subprocess.run(['mutagen', 'sync', 'list'])
+            self._display_formatted_status()
+
+    def _display_formatted_status(self) -> None:
+        """Display formatted sync status with colors"""
+        click.secho(f"╭──── Mutagen Sync Status (Profile: {self.config.profile_name}) ────╮",
+                    fg='blue', bold=True)
+
+        try:
+            # Get mutagen sync list output
+            result = subprocess.run(
+                ['mutagen', 'sync', 'list'],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+
+            if not result.stdout.strip() or "No sessions found" in result.stdout:
+                click.secho("│ No sync sessions found.                           │", fg='yellow')
+                click.secho("╰───────────────────────────────────────────────────╯", fg='blue',
+                            bold=True)
+                return
+
+            # Parse the text output
+            self._parse_and_display_text_output(result.stdout)
+
+        except subprocess.CalledProcessError as e:
+            click.secho(f"│ Error running mutagen: {e}                       │", fg='red')
+            click.secho("╰───────────────────────────────────────────────────╯", fg='blue',
+                        bold=True)
+
+    def _parse_and_display_text_output(self, output: str) -> None:
+        """Parse and display the text output from mutagen sync list with colors"""
+        lines = output.strip().split('\n')
+        current_session = None
+
+        for line in lines:
+            line = line.strip()
+
+            # Skip separator lines
+            if line.startswith('---') or not line:
+                if current_session:
+                    click.secho("├" + "─" * 70 + "┤", fg='blue', dim=True)
+                continue
+
+            # Parse session name
+            if line.startswith('Name:'):
+                name = line.split('Name:', 1)[1].strip()
+                current_session = name
+                click.echo()
+
+                # Determine session type and color
+                if 'push' in name.lower():
+                    icon = "⬆️ " if not self._no_emoji else "[PUSH] "
+                    color = 'green'
+                elif 'pull' in name.lower():
+                    icon = "⬇️ " if not self._no_emoji else "[PULL] "
+                    color = 'cyan'
+                else:
+                    icon = "🔄 " if not self._no_emoji else "[SYNC] "
+                    color = 'yellow'
+
+                click.secho(f"│ {icon}Session: {name}", fg=color, bold=True)
+
+            # Parse identifier
+            elif line.startswith('Identifier:'):
+                id_value = line.split('Identifier:', 1)[1].strip()
+                click.secho(f"│    ID: {id_value}", fg='white', dim=True)
+
+            # Parse Alpha/Beta sections
+            elif line.startswith('Alpha:'):
+                icon = "📁 " if not self._no_emoji else ""
+                click.secho(f"│    {icon}Source (Alpha):", fg='green', bold=True)
+            elif line.startswith('Beta:'):
+                icon = "📂 " if not self._no_emoji else ""
+                click.secho(f"│    {icon}Target (Beta):", fg='magenta', bold=True)
+
+            # Parse URL
+            elif line.startswith('URL:'):
+                url = line.split('URL:', 1)[1].strip()
+                if '@' in url and ':' in url:
+                    # SSH URL
+                    click.secho(f"│        {url}", fg='yellow')
+                else:
+                    # Local path
+                    click.secho(f"│        {url}", fg='white')
+
+            # Parse connection status
+            elif line.startswith('Connected:'):
+                connected = line.split('Connected:', 1)[1].strip()
+                if connected.lower() == 'yes':
+                    icon = "✅ " if not self._no_emoji else "[OK] "
+                    click.secho(f"│        {icon}Connected", fg='green')
+                else:
+                    icon = "❌ " if not self._no_emoji else "[FAIL] "
+                    click.secho(f"│        {icon}Disconnected", fg='red', bold=True)
+
+            # Parse synchronizable contents
+            elif 'directories' in line or 'files' in line or 'symbolic links' in line:
+                click.secho(f"│        {line}", fg='white', dim=True)
+
+            # Parse status
+            elif line.startswith('Status:'):
+                status = line.split('Status:', 1)[1].strip()
+                status_color = self._get_status_color(status)
+
+                if 'watching' in status.lower():
+                    icon = "✓ " if not self._no_emoji else "[WATCHING] "
+                elif 'paused' in status.lower():
+                    icon = "⏸ " if not self._no_emoji else "[PAUSED] "
+                elif 'scanning' in status.lower() or 'staging' in status.lower():
+                    icon = "↻ " if not self._no_emoji else "[SYNCING] "
+                elif 'error' in status.lower():
+                    icon = "✗ " if not self._no_emoji else "[ERROR] "
+                else:
+                    icon = "• " if not self._no_emoji else "- "
+
+                click.secho(f"│    {icon}Status: {status}", fg=status_color, bold=True)
+
+        click.secho("╰" + "─" * 70 + "╯", fg='blue', bold=True)
+
+    def _get_status_color(self, state: str) -> str:
+        """Get color for status state"""
+        state_lower = state.lower()
+        if 'error' in state_lower or 'disconnected' in state_lower:
+            return 'red'
+        elif 'paused' in state_lower:
+            return 'yellow'
+        elif 'watching' in state_lower:
+            return 'green'
+        elif 'scanning' in state_lower or 'staging' in state_lower:
+            return 'cyan'
+        else:
+            return 'white'
+
+    def show_status_table(self, watch: bool = False) -> None:
+        """Show status in compact table format using rich"""
+        if watch:
+            try:
+                with Live(self._create_table_with_paths(), refresh_per_second=0.5,
+                          console=console) as live:
+                    while True:
+                        time.sleep(2)
+                        live.update(self._create_table_with_paths())
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Exiting watch mode[/yellow]")
+        else:
+            console.print(self._create_table_with_paths())
+
+    def _create_table_with_paths(self):
+        """Create path table at top and summary table at bottom"""
+        from rich.console import Group
+        from rich.panel import Panel
+        from rich.text import Text
+
+        # First parse the sessions
+        try:
+            result = subprocess.run(
+                ['mutagen', 'sync', 'list'],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+
+            if not result.stdout.strip() or "No sessions found" in result.stdout:
+                self._sessions_cache = []
+            else:
+                self._sessions_cache = self._parse_sessions_for_table(result.stdout)
+
+        except subprocess.CalledProcessError:
+            self._sessions_cache = []
+
+        # Create path table first
+        path_table = self._create_path_table()
+
+        # Then create the summary table
+        summary_table = self._create_summary_table()
+
+        # Create conflict details if any
+        conflict_panel = self._create_conflict_panel()
+
+        # Combine them
+        if conflict_panel:
+            return Group(path_table, Text(), summary_table, Text(), conflict_panel)
+        else:
+            return Group(path_table, Text(), summary_table)  # Empty Text for spacing
+
+    def _create_path_table(self):
+        """Create a compact panel showing full paths"""
+        from rich.panel import Panel
+        from rich.text import Text
+
+        content = Text()
+
+        if not self._sessions_cache:
+            content.append("No sessions found", style="yellow")
+        else:
+            for i, session in enumerate(self._sessions_cache, 1):
+                if i > 1:
+                    content.append("\n")
+
+                name = session.get('name', 'Unknown')
+                source = session.get('source', 'N/A')
+                target = session.get('target', 'N/A')
+
+                content.append(f"[{i}] ", style="dim bold")
+
+                if 'push' in name.lower():
+                    content.append("PUSH ", style="bold green")
+                    content.append(source, style="green")
+                    content.append(" → ", style="bold green")
+                    content.append(target, style="yellow")
+                elif 'pull' in name.lower():
+                    content.append("PULL ", style="bold cyan")
+                    content.append(source, style="yellow")
+                    content.append(" ← ", style="bold cyan")
+                    content.append(target, style="green")
+                else:
+                    content.append("SYNC ", style="bold yellow")
+                    content.append(source, style="white")
+                    content.append(" ↔ ", style="bold yellow")
+                    content.append(target, style="white")
+
+                # Add conflict indicator if present
+                if session.get('has_conflicts', False):
+                    conflicts = session.get('conflicts', [])
+                    content.append(
+                        f" [bold red]⚠ {len(conflicts)} conflict{'s' if len(conflicts) != 1 else ''}[/bold red]",
+                        style=None)
+
+        return Panel(
+            content,
+            title="[bold blue]Full Paths[/bold blue]",
+            border_style="blue",
+            expand=False,
+            padding=(0, 1)
+        )
+
+    def _create_summary_table(self) -> Table:
+        """Create summary table with sync status"""
+        table = Table(
+            title="Summary",
+            title_style="bold blue",
+            show_header=True,
+            header_style="bold cyan",
+            box=box.ROUNDED,
+            expand=True
+        )
+
+        # Add columns
+        table.add_column("#", justify="center", style="dim", width=3)
+        table.add_column("Type", justify="center", style="bold")
+        table.add_column("Folder", style="white")
+        table.add_column("Direction", justify="center")
+        table.add_column("Remote", style="yellow")
+        table.add_column("Files", justify="right", style="blue")
+        table.add_column("Status", justify="center")
+
+        if not self._sessions_cache:
+            table.add_row("", "", "[yellow]No sync sessions found[/yellow]", "", "", "", "")
+        else:
+            for i, session in enumerate(self._sessions_cache, 1):
+                row_data = self._format_session_row(session)
+                table.add_row(f"[dim]{i}[/dim]", *row_data)
+
+        return table
+
+    def _parse_sessions_for_table(self, output: str) -> list[dict]:
+        """Parse mutagen output into session dictionaries"""
+        lines = output.strip().split('\n')
+        sessions = []
+        current_session = {}
+        in_conflicts = False
+
+        for line in lines:
+            line = line.strip()
+
+            if line.startswith('Name:'):
+                if current_session:
+                    sessions.append(current_session)
+                current_session = {'name': line.split('Name:', 1)[1].strip()}
+                in_conflicts = False
+            elif line.startswith('Status:'):
+                current_session['status'] = line.split('Status:', 1)[1].strip()
+            elif line.startswith('URL:'):
+                if 'source' not in current_session:
+                    current_session['source'] = line.split('URL:', 1)[1].strip()
+                else:
+                    current_session['target'] = line.split('URL:', 1)[1].strip()
+            elif line.startswith('Connected:'):
+                if 'alpha_connected' not in current_session:
+                    current_session['alpha_connected'] = line.split('Connected:', 1)[1].strip()
+                else:
+                    current_session['beta_connected'] = line.split('Connected:', 1)[1].strip()
+            elif 'files' in line and 'file_info' not in current_session:
+                current_session['file_info'] = line.strip()
+            elif line.startswith('Conflicts:'):
+                in_conflicts = True
+                current_session['has_conflicts'] = True
+                current_session['conflicts'] = []
+            elif in_conflicts and line and not line.startswith('---'):
+                # Capture conflict details
+                if 'conflicts' in current_session:
+                    current_session['conflicts'].append(line)
+            elif line.startswith('---'):
+                if current_session:
+                    sessions.append(current_session)
+                    current_session = {}
+                in_conflicts = False
+
+        if current_session:
+            sessions.append(current_session)
+
+        return sessions
+
+    def _format_session_row(self, session: dict) -> tuple:
+        """Format session data for table row"""
+        name = session.get('name', 'Unknown')
+        source = session.get('source', 'N/A')
+        target = session.get('target', 'N/A')
+
+        # Determine type and direction
+        if 'push' in name.lower():
+            type_icon = "[bold green]PUSH[/bold green]"
+            direction_icon = "[bold green]→[/bold green]"
+            local_path = source
+            remote_path = target
+        elif 'pull' in name.lower():
+            type_icon = "[bold cyan]PULL[/bold cyan]"
+            direction_icon = "[bold cyan]←[/bold cyan]"
+            local_path = target
+            remote_path = source
+        else:
+            type_icon = "[bold yellow]SYNC[/bold yellow]"
+            direction_icon = "[bold yellow]↔[/bold yellow]"
+            local_path = source
+            remote_path = target
+
+        # Extract folder name from local path
+        folder_name = local_path.split('/')[-1] if '/' in local_path else local_path
+
+        # Format remote info
+        if '@' in remote_path and ':' in remote_path:
+            parts = remote_path.split(':')
+            host = parts[0].split('@')[-1]
+            path = ':'.join(parts[1:])
+            remote_folder = path.split('/')[-1] if '/' in path else path
+            remote_info = f"{host}:{remote_folder}"
+        else:
+            remote_info = remote_path.split('/')[-1] if '/' in remote_path else remote_path
+
+        # File info
+        file_info = session.get('file_info', '')
+        if 'files' in file_info:
+            import re
+            match = re.search(r'(\d+)\s+files\s*\(([^)]+)\)', file_info)
+            if match:
+                file_display = f"{match.group(1)} ({match.group(2)})"
+            else:
+                file_display = "N/A"
+        else:
+            file_display = "N/A"
+
+        # Status
+        status = session.get('status', 'Unknown')
+        alpha_conn = session.get('alpha_connected', 'Unknown')
+        beta_conn = session.get('beta_connected', 'Unknown')
+        has_conflicts = session.get('has_conflicts', False)
+
+        if has_conflicts:
+            conflict_count = len(session.get('conflicts', []))
+            status_display = f"[bold red]⚠ {conflict_count} Conflict{'s' if conflict_count != 1 else ''}[/bold red]"
+        elif alpha_conn.lower() != 'yes' or beta_conn.lower() != 'yes':
+            status_display = "[bold red]✗ Disconnected[/bold red]"
+        elif 'watching' in status.lower():
+            status_display = "[bold green]✓ Watching[/bold green]"
+        elif 'paused' in status.lower():
+            status_display = "[bold yellow]⏸ Paused[/bold yellow]"
+        elif 'scanning' in status.lower() or 'staging' in status.lower():
+            status_display = "[bold cyan]↻ Syncing[/bold cyan]"
+        elif 'error' in status.lower():
+            status_display = "[bold red]✗ Error[/bold red]"
+        else:
+            status_display = f"[dim]{status[:15]}[/dim]"
+
+        return (type_icon, folder_name, direction_icon, remote_info, file_display, status_display)
+
+    def _format_session_row_full(self, session: dict) -> tuple:
+        """Format session data for table row with full paths"""
+        name = session.get('name', 'Unknown')
+        source = session.get('source', 'N/A')
+        target = session.get('target', 'N/A')
+
+        # Determine type
+        if 'push' in name.lower():
+            type_icon = "[bold green]PUSH[/bold green]"
+            arrow = "[green]→[/green]"
+            local_path = source
+            remote_path = target
+        elif 'pull' in name.lower():
+            type_icon = "[bold cyan]PULL[/bold cyan]"
+            arrow = "[cyan]←[/cyan]"
+            local_path = target
+            remote_path = source
+        else:
+            type_icon = "[bold yellow]SYNC[/bold yellow]"
+            arrow = "[yellow]↔[/yellow]"
+            local_path = source
+            remote_path = target
+
+        # File info
+        file_info = session.get('file_info', '')
+        if 'files' in file_info:
+            import re
+            match = re.search(r'(\d+)\s+files\s*\(([^)]+)\)', file_info)
+            if match:
+                file_display = f"[cyan]{match.group(1)}[/cyan] ([dim]{match.group(2)}[/dim])"
+            else:
+                file_display = "[dim]N/A[/dim]"
+        else:
+            file_display = "[dim]N/A[/dim]"
+
+        # Status with enhanced colors
+        status = session.get('status', 'Unknown')
+        alpha_conn = session.get('alpha_connected', 'Unknown')
+        beta_conn = session.get('beta_connected', 'Unknown')
+
+        if alpha_conn.lower() != 'yes' or beta_conn.lower() != 'yes':
+            status_display = "[bold red]✗ Error[/bold red]"
+        elif 'watching' in status.lower():
+            status_display = "[bold green]✓ Active[/bold green]"
+        elif 'paused' in status.lower():
+            status_display = "[bold yellow]⏸ Paused[/bold yellow]"
+        elif 'scanning' in status.lower() or 'staging' in status.lower():
+            status_display = "[bold cyan]↻ Syncing[/bold cyan]"
+        elif 'error' in status.lower():
+            status_display = "[bold red]✗ Error[/bold red]"
+        else:
+            status_display = f"[dim]{status[:12]}[/dim]"
+
+        return (type_icon, f"[green]{local_path}[/green]", arrow, f"[yellow]{remote_path}[/yellow]",
+                file_display, status_display)
+
+    def _create_conflict_panel(self):
+        """Create a panel showing conflict details if any exist"""
+        from rich.panel import Panel
+        from rich.text import Text
+
+        # Check if any sessions have conflicts
+        conflicts_by_session = []
+        for i, session in enumerate(self._sessions_cache, 1):
+            if session.get('has_conflicts', False):
+                conflicts = session.get('conflicts', [])
+                if conflicts:
+                    conflicts_by_session.append((i, session.get('name', 'Unknown'), conflicts))
+
+        if not conflicts_by_session:
+            return None
+
+        content = Text()
+        content.append("⚠ CONFLICTS DETECTED\n", style="bold red")
+        content.append("The following files have synchronization conflicts:\n\n", style="dim")
+
+        for idx, (session_num, session_name, conflicts) in enumerate(conflicts_by_session):
+            if idx > 0:
+                content.append("\n")
+
+            content.append(f"[{session_num}] ", style="dim bold")
+            if 'push' in session_name.lower():
+                content.append("PUSH", style="bold green")
+            elif 'pull' in session_name.lower():
+                content.append("PULL", style="bold cyan")
+            else:
+                content.append("SYNC", style="bold yellow")
+            content.append(":\n", style="dim")
+
+            for conflict in conflicts:
+                content.append("  • ", style="red")
+                content.append(conflict.strip(), style="white")
+                content.append("\n")
+
+        content.append("\nResolve conflicts manually or use 'mutagen sync reset' to clear them.",
+                       style="dim italic")
+
+        return Panel(
+            content,
+            title="[bold red]Conflict Details[/bold red]",
+            border_style="red",
+            expand=False,
+            padding=(0, 1)
+        )
+
+    def show_status_minimal(self, watch: bool = False) -> None:
+        """Show status in minimal format using rich"""
+        if watch:
+            try:
+                with Live(self._create_minimal_panel(), refresh_per_second=0.5,
+                          console=console) as live:
+                    while True:
+                        time.sleep(2)
+                        live.update(self._create_minimal_panel())
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Exiting watch mode[/yellow]")
+        else:
+            console.print(self._create_minimal_panel())
+
+    def _create_minimal_panel(self) -> Panel:
+        """Create a minimal status panel"""
+        try:
+            result = subprocess.run(
+                ['mutagen', 'sync', 'list'],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+
+            if not result.stdout.strip() or "No sessions found" in result.stdout:
+                content = Text("No sync sessions found", style="yellow")
+            else:
+                sessions = self._parse_minimal_output(result.stdout)
+                content = self._format_minimal_content(sessions)
+
+        except subprocess.CalledProcessError:
+            content = Text("Error running mutagen", style="red")
+
+        return Panel(
+            content,
+            title=f"[bold blue]Mutagen Sync Status - {self.config.profile_name}[/bold blue]",
+            border_style="blue",
+            padding=(0, 1),
+            expand=False
+        )
+
+    def _parse_minimal_output(self, output: str) -> list[dict]:
+        """Parse mutagen output for minimal display"""
+        lines = output.strip().split('\n')
+        sessions = []
+        current_session = {}
+
+        for line in lines:
+            line = line.strip()
+
+            if line.startswith('Name:'):
+                if current_session:
+                    sessions.append(current_session)
+                current_session = {'name': line.split('Name:', 1)[1].strip()}
+            elif line.startswith('Status:'):
+                current_session['status'] = line.split('Status:', 1)[1].strip()
+            elif line.startswith('Connected:'):
+                if 'connected' not in current_session:
+                    current_session['connected'] = line.split('Connected:', 1)[1].strip()
+            elif line.startswith('URL:') and 'source' not in current_session:
+                current_session['source'] = line.split('URL:', 1)[1].strip()
+            elif line.startswith('URL:') and 'target' not in current_session:
+                current_session['target'] = line.split('URL:', 1)[1].strip()
+            elif line.startswith('---') and current_session:
+                sessions.append(current_session)
+                current_session = {}
+
+        if current_session:
+            sessions.append(current_session)
+
+        return sessions
+
+    def _format_minimal_content(self, sessions: list[dict]) -> Text:
+        """Format sessions for minimal display"""
+        from rich.text import Text
+
+        # Create a composite text with proper formatting
+        lines = []
+
+        # Count statuses
+        active = sum(1 for s in sessions if 'watching' in s.get('status', '').lower())
+        paused = sum(1 for s in sessions if 'paused' in s.get('status', '').lower())
+        error = sum(1 for s in sessions if 'error' in s.get('status', '').lower() or
+                    s.get('connected') == 'no')
+
+        # Status summary line
+        summary_parts = []
+        if active > 0:
+            summary_parts.append(Text(f"✓ {active} active", style="bold green"))
+        if paused > 0:
+            summary_parts.append(Text(f"⏸ {paused} paused", style="bold yellow"))
+        if error > 0:
+            summary_parts.append(Text(f"✗ {error} error", style="bold red"))
+
+        if summary_parts:
+            summary = Text()
+            for i, part in enumerate(summary_parts):
+                if i > 0:
+                    summary.append(" | ", style="dim")
+                summary.append(part)
+            lines.append(summary)
+        else:
+            lines.append(Text("No sessions", style="dim"))
+
+        lines.append(Text())  # Empty line
+
+        # Session details
+        for session in sessions:
+            name = session.get('name', 'Unknown')
+            status = session.get('status', 'Unknown')
+            source = session.get('source', '')
+            target = session.get('target', '')
+
+            # Create line text
+            line = Text("  ")
+
+            # Status indicator
+            if 'watching' in status.lower():
+                line.append("● ", style="bold green")
+            elif 'paused' in status.lower():
+                line.append("● ", style="bold yellow")
+            elif 'error' in status.lower() or session.get('connected') == 'No':
+                line.append("● ", style="bold red")
+            else:
+                line.append("○ ", style="dim")
+
+            # Direction icon
+            if 'push' in name.lower():
+                line.append("↑ ", style="bold green")
+            elif 'pull' in name.lower():
+                line.append("↓ ", style="bold cyan")
+            else:
+                line.append("↔ ", style="bold yellow")
+
+            # Paths
+            source_folder = source.split('/')[-1] if source else 'N/A'
+            target_folder = target.split('/')[-1] if target else 'N/A'
+            line.append(f"{source_folder} → {target_folder}", style="white")
+
+            # Add status if not active
+            if 'watching' not in status.lower():
+                line.append(f" [{status.lower()}]", style="dim italic")
+
+            lines.append(line)
+
+        # Combine all lines into final text
+        final_text = Text()
+        for i, line in enumerate(lines):
+            if i > 0:
+                final_text.append("\n")
+            final_text.append(line)
+
+        return final_text
 
     def monitor_sync(self, session_name: str) -> None:
         """Monitor a specific sync session"""
@@ -598,7 +1282,8 @@ def cli(ctx, config, profile, verbose):
 @click.option('--no-create-remote', is_flag=True,
               help='Do not create remote directory if it does not exist')
 @click.pass_obj
-def start(config, local_path, remote_host, remote_path, direction, force, dry_run, no_create_remote):
+def start(config, local_path, remote_host, remote_path, direction, force, dry_run,
+          no_create_remote):
     """Start sync session(s)"""
     # Override config with CLI options
     if local_path:
@@ -651,9 +1336,32 @@ def restart(config, direction, force):
               help='Continuously watch status')
 @click.pass_obj
 def status(config, watch):
-    """Show sync status"""
+    """Show sync status with full paths and summary table"""
     sync_manager = MutagenSync(config)
+    sync_manager.show_status_table(watch=watch)
+
+
+@cli.command()
+@click.option('--watch', '-w', is_flag=True,
+              help='Continuously watch status')
+@click.option('--no-emoji', is_flag=True,
+              help='Disable emoji icons in output')
+@click.pass_obj
+def status1(config, watch, no_emoji):
+    """Show sync status (detailed view with boxes)"""
+    sync_manager = MutagenSync(config)
+    sync_manager._no_emoji = no_emoji
     sync_manager.show_status(watch=watch)
+
+
+@cli.command()
+@click.option('--watch', '-w', is_flag=True,
+              help='Continuously watch status')
+@click.pass_obj
+def status2(config, watch):
+    """Show sync status (minimal view)"""
+    sync_manager = MutagenSync(config)
+    sync_manager.show_status_minimal(watch=watch)
 
 
 @cli.command()

@@ -90,7 +90,7 @@ class BaseSoC(SoCMini):
 
         # PCIe -------------------------------------------------------------------------------------
         if with_pcie:
-            self._add_pcie_x4()
+            self._add_pcie_x4(pcie_speed="gen4")
             # self._add_pcie_x1()
 
             # ICAP (For FPGA reload over PCIe).
@@ -134,10 +134,10 @@ class BaseSoC(SoCMini):
                       with_dma_status=True, address_width=32)
 
         # Only need one LOC constraint for x1
-        platform.toolchain.pre_placement_commands.append(
-            "reset_property LOC [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*GTHE4_CHANNEL_PRIM_INST}}]")
-        platform.toolchain.pre_placement_commands.append(
-            "set_property LOC GTHE4_CHANNEL_X0Y0 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[0].GTHE4_CHANNEL_PRIM_INST}}]")
+        # platform.toolchain.pre_placement_commands.append(
+        #     "reset_property LOC [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*GTHE4_CHANNEL_PRIM_INST}}]")
+        # platform.toolchain.pre_placement_commands.append(
+        #     "set_property LOC GTHE4_CHANNEL_X0Y0 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[0].GTHE4_CHANNEL_PRIM_INST}}]")
 
     def _add_pcie_x4(self, pcie_speed="gen4", ):
         platform = self.platform
@@ -160,16 +160,16 @@ class BaseSoC(SoCMini):
                       with_dma_status=True, address_width=32,)
 
         # Set manual locations to avoid Vivado to remap lanes to X0Y4, X0Y5, X0Y6, X0Y7.
-        platform.toolchain.pre_placement_commands.append(
-            "reset_property LOC [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*GTHE4_CHANNEL_PRIM_INST}}]")
-        platform.toolchain.pre_placement_commands.append(
-            "set_property LOC GTHE4_CHANNEL_X0Y0 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[0].GTHE4_CHANNEL_PRIM_INST}}]")
-        platform.toolchain.pre_placement_commands.append(
-            "set_property LOC GTHE4_CHANNEL_X0Y1 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[1].GTHE4_CHANNEL_PRIM_INST}}]")
-        platform.toolchain.pre_placement_commands.append(
-            "set_property LOC GTHE4_CHANNEL_X0Y2 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[2].GTHE4_CHANNEL_PRIM_INST}}]")
-        platform.toolchain.pre_placement_commands.append(
-            "set_property LOC GTHE4_CHANNEL_X0Y3 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[3].GTHE4_CHANNEL_PRIM_INST}}]")
+        # platform.toolchain.pre_placement_commands.append(
+        #     "reset_property LOC [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*GTHE4_CHANNEL_PRIM_INST}}]")
+        # platform.toolchain.pre_placement_commands.append(
+        #     "set_property LOC GTHE4_CHANNEL_X0Y0 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[0].GTHE4_CHANNEL_PRIM_INST}}]")
+        # platform.toolchain.pre_placement_commands.append(
+        #     "set_property LOC GTHE4_CHANNEL_X0Y1 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[1].GTHE4_CHANNEL_PRIM_INST}}]")
+        # platform.toolchain.pre_placement_commands.append(
+        #     "set_property LOC GTHE4_CHANNEL_X0Y2 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[2].GTHE4_CHANNEL_PRIM_INST}}]")
+        # platform.toolchain.pre_placement_commands.append(
+        #     "set_property LOC GTHE4_CHANNEL_X0Y3 [get_cells -hierarchical -filter {{NAME=~*pcie_usp_i/*gthe4_channel_gen.gen_gthe4_channel_inst[3].GTHE4_CHANNEL_PRIM_INST}}]")
 
     # Add PCIe -------------------------------------------------------------------------------------
     # def add_pcie(self, name="pcie", phy=None, ndmas=0, max_pending_requests=8, address_width=32,
